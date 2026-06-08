@@ -1,5 +1,5 @@
-import PrintEditor from '@/components/PrintEditor';
+import NotionFlow from '@/components/NotionFlow';
 
 export default function Home() {
-  return <PrintEditor />;
+  return <NotionFlow />;
 }
