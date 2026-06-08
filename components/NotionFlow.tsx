@@ -1,10 +1,18 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { preprocessNotionMarkdown } from '@/lib/notionMarkdownPreprocessor';
 
-type Page = { id: string; title: string; lastEdited: string };
+const LS_KEY = 'notion_api_key';
+
+type Page = {
+  id: string;
+  title: string;
+  type: 'page' | 'database_entry';
+  lastEdited: string;
+  parentTitle?: string;
+};
 type Step = 'setup' | 'pages' | 'print';
 
 export default function NotionFlow() {
@@ -18,24 +26,41 @@ export default function NotionFlow() {
   const [pageTitle, setPageTitle] = useState('');
   const [search, setSearch] = useState('');
 
-  const handleConnect = useCallback(async () => {
-    if (!apiKey.trim()) return;
+  // Charge la clé depuis localStorage au montage
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) setApiKey(saved);
+  }, []);
+
+  const handleConnect = useCallback(async (key?: string) => {
+    const k = (key ?? apiKey).trim();
+    if (!k) return;
     setError('');
     setLoadingPages(true);
     try {
       const res = await fetch('/api/notion/pages', {
-        headers: { 'x-notion-key': apiKey.trim() },
+        headers: { 'x-notion-key': k },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      localStorage.setItem(LS_KEY, k);
+      setApiKey(k);
       setPages(data.pages);
       setStep('pages');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erreur de connexion');
+      localStorage.removeItem(LS_KEY);
     } finally {
       setLoadingPages(false);
     }
   }, [apiKey]);
+
+  // Auto-connexion si clé déjà sauvegardée
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) handleConnect(saved);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSelectPage = useCallback(async (page: Page) => {
     setError('');
@@ -56,9 +81,29 @@ export default function NotionFlow() {
     }
   }, [apiKey]);
 
+  const handleDisconnect = useCallback(() => {
+    localStorage.removeItem(LS_KEY);
+    setApiKey('');
+    setPages([]);
+    setError('');
+    setStep('setup');
+  }, []);
+
   const filtered = pages.filter((p) =>
-    p.title.toLowerCase().includes(search.toLowerCase())
+    p.title.toLowerCase().includes(search.toLowerCase()) ||
+    (p.parentTitle ?? '').toLowerCase().includes(search.toLowerCase())
   );
+
+  // Groupe par parentTitle pour les entrées DB
+  const standalonePages = filtered.filter((p) => p.type === 'page');
+  const dbGroups = filtered
+    .filter((p) => p.type === 'database_entry')
+    .reduce<Record<string, Page[]>>((acc, p) => {
+      const key = p.parentTitle ?? 'Base de données';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(p);
+      return acc;
+    }, {});
 
   const processed = preprocessNotionMarkdown(markdown);
 
@@ -103,24 +148,24 @@ export default function NotionFlow() {
   // ── Vue liste des pages ───────────────────────────────────────
   if (step === 'pages') {
     return (
-      <div className="no-print min-h-screen bg-gray-50 pt-16 px-4">
+      <div className="min-h-screen bg-gray-50 pt-16 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Vos pages Notion</h1>
-              <p className="text-sm text-gray-500 mt-1">{pages.length} pages accessibles</p>
+              <p className="text-sm text-gray-500 mt-1">{pages.length} éléments accessibles</p>
             </div>
             <button
-              onClick={() => { setStep('setup'); setPages([]); setError(''); }}
+              onClick={handleDisconnect}
               className="text-sm text-gray-500 hover:text-gray-700 underline"
             >
-              Changer de clé
+              Déconnecter
             </button>
           </div>
 
           <input
             type="search"
-            placeholder="Rechercher une page..."
+            placeholder="Rechercher une page ou une base..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full mb-4 px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-gray-400 transition-colors"
@@ -133,27 +178,42 @@ export default function NotionFlow() {
           )}
 
           {!loadingPage && (
-            <div className="space-y-1">
+            <div className="space-y-6">
+
+              {/* Pages standalone */}
+              {standalonePages.length > 0 && (
+                <div>
+                  {Object.keys(dbGroups).length > 0 && (
+                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Pages</h2>
+                  )}
+                  <div className="space-y-1">
+                    {standalonePages.map((page) => (
+                      <PageItem key={page.id} page={page} onClick={() => handleSelectPage(page)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Entrées par database */}
+              {Object.entries(dbGroups).map(([dbName, entries]) => (
+                <div key={dbName}>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                    {dbName}
+                  </h2>
+                  <div className="space-y-1">
+                    {entries.map((page) => (
+                      <PageItem key={page.id} page={page} onClick={() => handleSelectPage(page)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
               {filtered.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-8">Aucune page trouvée</p>
               )}
-              {filtered.map((page) => (
-                <button
-                  key={page.id}
-                  onClick={() => handleSelectPage(page)}
-                  className="w-full text-left px-4 py-3 rounded-lg bg-white border border-gray-200 hover:border-gray-400 hover:shadow-sm transition-all flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className="text-sm text-gray-800 font-medium truncate">{page.title}</span>
-                  </div>
-                  <span className="text-xs text-gray-400 flex-shrink-0 ml-3">
-                    {new Date(page.lastEdited).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </span>
-                </button>
-              ))}
             </div>
           )}
         </div>
@@ -180,7 +240,7 @@ export default function NotionFlow() {
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-900 text-white text-xs flex items-center justify-center font-medium">2</span>
-              <span>Copiez le <strong>secret d&apos;intégration</strong> (commence par <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">ntn_</span> ou <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">secret_</span>)</span>
+              <span>Copiez le <strong>secret d&apos;intégration</strong> (commence par <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">ntn_</span>)</span>
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-900 text-white text-xs flex items-center justify-center font-medium">3</span>
@@ -202,7 +262,7 @@ export default function NotionFlow() {
             {error && <p className="text-red-600 text-sm">{error}</p>}
 
             <button
-              onClick={handleConnect}
+              onClick={() => handleConnect()}
               disabled={!apiKey.trim() || loadingPages}
               className="w-full py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
@@ -212,9 +272,28 @@ export default function NotionFlow() {
         </div>
 
         <p className="text-center text-xs text-gray-400">
-          La clé n&apos;est jamais stockée — elle est utilisée uniquement pour cette session.
+          La clé est sauvegardée localement dans votre navigateur et n&apos;est jamais envoyée à un serveur tiers.
         </p>
       </div>
     </div>
+  );
+}
+
+function PageItem({ page, onClick }: { page: Page; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left px-4 py-3 rounded-lg bg-white border border-gray-200 hover:border-gray-400 hover:shadow-sm transition-all flex items-center justify-between group"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <span className="text-sm text-gray-800 font-medium truncate">{page.title}</span>
+      </div>
+      <span className="text-xs text-gray-400 flex-shrink-0 ml-3">
+        {new Date(page.lastEdited).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+      </span>
+    </button>
   );
 }
