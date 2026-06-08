@@ -1,0 +1,292 @@
+@import "tailwindcss";
+@import "highlight.js/styles/github.css";
+
+:root {
+  --background: #f5f5f0;
+  --foreground: #1a1a1a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+/* ── Zone d'impression ──────────────────────────────────────── */
+
+.print-area {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-size: 11pt;
+  line-height: 1.7;
+  color: #1a1a1a;
+  max-width: 210mm;
+  margin: 0 auto;
+}
+
+/* Titres */
+.print-area h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.print-area h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  margin-top: 1.4em;
+  margin-bottom: 0.4em;
+  border-bottom: 1.5px solid #d0d0d0;
+  padding-bottom: 0.15em;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.print-area h3 {
+  font-size: 13pt;
+  font-weight: 700;
+  margin-top: 1.2em;
+  margin-bottom: 0.3em;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.print-area h4,
+.print-area h5,
+.print-area h6 {
+  font-size: 11pt;
+  font-weight: 700;
+  margin-top: 1em;
+  margin-bottom: 0.2em;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* Paragraphes */
+.print-area p {
+  margin-top: 0;
+  margin-bottom: 0.7em;
+  orphans: 3;
+  widows: 3;
+}
+
+/* Listes */
+.print-area ul,
+.print-area ol {
+  margin: 0.4em 0 0.8em 1.5em;
+  padding: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-area li {
+  margin-bottom: 0.2em;
+}
+
+/* Tableaux */
+.print-area .table-wrapper {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 1em 0;
+  overflow: visible;
+}
+
+.print-area table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+
+.print-area th {
+  background: #f0f0ec;
+  font-weight: 700;
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid #c8c8c8;
+}
+
+.print-area td {
+  padding: 5px 10px;
+  border: 1px solid #c8c8c8;
+  vertical-align: top;
+}
+
+.print-area tr:nth-child(even) td {
+  background: #fafaf8;
+}
+
+/* Blocs de code */
+.print-area .code-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 0.8em 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  background: #f8f8f6;
+}
+
+.print-area .code-block pre {
+  margin: 0;
+  padding: 14px 16px;
+  background: transparent !important;
+  font-family: var(--font-jetbrains-mono), 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 9pt;
+  line-height: 1.5;
+  overflow: visible;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* highlight.js injecte un <code> avec son propre fond — on le neutralise */
+.print-area .code-block pre code.hljs {
+  background: transparent !important;
+  padding: 0;
+}
+
+.print-area .code-lang {
+  background: #ebebea;
+  color: #555;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 8pt;
+  padding: 4px 12px;
+  display: block;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Code inline */
+.print-area code:not(pre code) {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 9pt;
+  color: #be123c;
+}
+
+/* Callouts Notion (> 💡 ...) */
+.print-area .callout {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  display: flex;
+  gap: 10px;
+  margin: 0.8em 0;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border-left: 4px solid #c8c8c8;
+  background: #f7f7f4;
+  font-size: 10.5pt;
+}
+
+.print-area .callout-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.print-area .callout-body {
+  flex: 1;
+}
+
+.print-area .callout-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Callout par type d'émoji */
+.print-area .callout[data-type="info"] { border-color: #5b8af0; background: #eef2ff; }
+.print-area .callout[data-type="warning"] { border-color: #f0a030; background: #fff8ee; }
+.print-area .callout[data-type="success"] { border-color: #3bb06f; background: #edfaf3; }
+.print-area .callout[data-type="danger"] { border-color: #e05555; background: #fff0f0; }
+
+/* Blockquote standard */
+.print-area blockquote {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  border-left: 4px solid #d0d0d0;
+  margin: 0.8em 0 0.8em 0;
+  padding: 6px 16px;
+  color: #555;
+  font-style: italic;
+}
+
+/* Séparateur */
+.print-area hr {
+  border: none;
+  border-top: 1.5px solid #e0e0e0;
+  margin: 1.5em 0;
+}
+
+/* Images */
+.print-area .image-wrapper {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 1em 0;
+  text-align: center;
+}
+
+.print-area img {
+  max-width: 100%;
+  height: auto;
+}
+
+.print-area .image-caption {
+  font-size: 9pt;
+  color: #777;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Toggles Notion (faux details) */
+.print-area .toggle {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 0.4em 0;
+}
+
+/* ── Styles impression ──────────────────────────────────────── */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 10mm 14mm 10mm;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-area {
+    max-width: 100%;
+    margin: 0;
+  }
+
+  /* Sections H2/H3 : ne pas couper à l'intérieur */
+  .print-area .section-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* H1 (sauf premier) : saut de page forcé avant */
+  .print-area .section-page-break {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  .print-area .table-wrapper { break-inside: avoid; page-break-inside: avoid; }
+  .print-area .code-block    { break-inside: avoid; page-break-inside: avoid; }
+  .print-area .callout       { break-inside: avoid; page-break-inside: avoid; }
+  .print-area blockquote     { break-inside: avoid; page-break-inside: avoid; }
+  .print-area .image-wrapper { break-inside: avoid; page-break-inside: avoid; }
+  .print-area ul,
+  .print-area ol             { break-inside: avoid; page-break-inside: avoid; }
+}
