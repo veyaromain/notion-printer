@@ -56,48 +56,58 @@ export async function GET(req: NextRequest) {
       cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
     } while (cursor);
 
-    // 2. Toutes les databases accessibles via search, puis leurs entrées
-    let dbCursor: string | undefined;
+    // 2. Cherche tous les objets sans filtre pour trouver les databases
+    let allCursor: string | undefined;
+    const databaseIds = new Set<string>();
     do {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await (notion.search as any)({
-        filter: { value: 'database', property: 'object' },
+      const res = await notion.search({
         sort: { direction: 'descending', timestamp: 'last_edited_time' },
         page_size: 100,
-        ...(dbCursor ? { start_cursor: dbCursor } : {}),
+        ...(allCursor ? { start_cursor: allCursor } : {}),
       });
 
       for (const item of res.results) {
-        const db = item as unknown as DatabaseObjectResponse;
-        const dbTitle = extractDbTitle(db);
-
-        // Récupère les entrées de la database
-        let entryCursor: string | undefined;
-        do {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((item as any).object === 'database') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const entries = await (notion as any).databases.query({
-            database_id: db.id,
-            page_size: 100,
-            ...(entryCursor ? { start_cursor: entryCursor } : {}),
-          });
-
-          for (const entry of entries.results) {
-            const p = entry as PageObjectResponse;
-            results.push({
-              id: p.id,
-              title: extractTitle(p),
-              type: 'database_entry',
-              lastEdited: p.last_edited_time,
-              parentTitle: dbTitle,
-            });
-          }
-
-          entryCursor = entries.has_more ? (entries.next_cursor ?? undefined) : undefined;
-        } while (entryCursor);
+          databaseIds.add((item as any).id);
+        }
       }
 
-      dbCursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
-    } while (dbCursor);
+      allCursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+    } while (allCursor);
+
+    // 3. Pour chaque database, récupère ses entrées
+    for (const dbId of databaseIds) {
+      let dbTitle = 'Base de données';
+      try {
+        const db = await notion.databases.retrieve({ database_id: dbId }) as DatabaseObjectResponse;
+        dbTitle = extractDbTitle(db);
+      } catch { /* ignore si inaccessible */ }
+
+      let entryCursor: string | undefined;
+      do {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const entries = await (notion as any).databases.query({
+          database_id: dbId,
+          page_size: 100,
+          ...(entryCursor ? { start_cursor: entryCursor } : {}),
+        });
+
+        for (const entry of entries.results) {
+          const p = entry as PageObjectResponse;
+          results.push({
+            id: p.id,
+            title: extractTitle(p),
+            type: 'database_entry',
+            lastEdited: p.last_edited_time,
+            parentTitle: dbTitle,
+          });
+        }
+
+        entryCursor = entries.has_more ? (entries.next_cursor ?? undefined) : undefined;
+      } while (entryCursor);
+    }
 
     // Déduplique par id (une page peut apparaître en tant que page ET entrée)
     const seen = new Set<string>();
